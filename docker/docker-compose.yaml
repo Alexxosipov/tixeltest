@@ -1,0 +1,58 @@
+version: "3.5"
+services:
+  tixel-redis:
+    image: redis:alpine
+    container_name: tixel-redis
+    volumes:
+      - tixel-redis:/data
+    ports:
+      - "16377:6379"
+    networks:
+      - tixel
+
+  tixel-nginx:
+    image: nginx:alpine
+    container_name: tixel-nginx
+    working_dir: /application
+    volumes:
+      - ../:/application
+      - ./nginx:/etc/nginx/conf.d
+    ports:
+      - "8080:80"
+    networks:
+      - tixel
+    depends_on:
+      - tixel-php-fpm
+
+  tixel-php-fpm:
+    build: php
+    container_name: tixel-php-fpm
+    working_dir: /app
+    volumes:
+      - ../:/application
+      - ./php-fpm/php-ini-overrides.ini:/etc/php/7.4/fpm/conf.d/99-overrides.ini
+    ports:
+      - "9000"
+    networks:
+      - tixel
+  tixel-node:
+    container_name: tixel-node
+    build: node
+    volumes:
+      - ../queuelistener.js:/app/queuelistener.js
+      - ../node_modules:/app/node_modules
+    environment:
+      HTTP_CALLBACK_ENDPOINT: "http://tixel-nginx/api/events"
+      REDIS_HOST: tixel-redis
+      REDIS_PORT: 6379
+    networks:
+      - tixel
+
+networks:
+  tixel:
+    driver: bridge
+
+volumes:
+  tixel-redis:
+    driver: "local"
+
